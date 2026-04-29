@@ -7,13 +7,15 @@ const jwt = require("jsonwebtoken");
 exports.signup = async (req, res) => {
   const { name, email, password } = req.body;
   const role = "employee";
-
+  
   try {
+    const normalizedEmail = email.toLowerCase();
+
     const hashed = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
       "INSERT INTO users (name, email, password, role) VALUES ($1,$2,$3,$4) RETURNING *",
-      [name, email, hashed, role]
+      [name, normalizedEmail, hashed, role]
     );
 
     const user = result.rows[0];
@@ -33,8 +35,10 @@ exports.signup = async (req, res) => {
 //-------------LOG IN STARTS-----------------
 exports.login = async (req, res) => {
     const { email, password } = req.body;
+    
+    const normalizedEmail = email.toLowerCase();
 
-    const user = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
+    const user = await pool.query("SELECT * FROM users WHERE email=$1", [normalizedEmail]);
 
     if (user.rows.length === 0)
         return res.status(400).json({ error: "User not found"});
