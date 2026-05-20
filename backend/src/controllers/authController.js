@@ -25,35 +25,97 @@ exports.signup = async (req, res) => {
 
   } catch (err) {
     if (err.code === "23505") {
-      return res.status(400).json({ error: "Email already exists" });
+      return res.status(400).json({ message: "Email already exists" });
     }
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 //-------------SIGN UP ENDS------------------
 
 //-------------LOG IN STARTS-----------------
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
+    const { employee_code, password } = req.body;
     
-    const normalizedEmail = email.toLowerCase();
+    const normalizedCode = employee_code.toUpperCase();
 
-    const user = await pool.query("SELECT * FROM users WHERE email=$1", [normalizedEmail]);
+    const user = await pool.query("SELECT * FROM users WHERE employee_code=$1", [normalizedCode]);
 
     if (user.rows.length === 0)
-        return res.status(400).json({ error: "User not found"});
+        return res.status(400).json({ message: "User not found"});
 
     const valid = await bcrypt.compare(password, user.rows[0].password);
 
     if (!valid)
-        return res.status(400).json({ error: "Wrong password" });
+        return res.status(400).json({ message: "Wrong password" });
+
+    if (!user.rows[0].is_active) {
+      return res.status(403).json({
+        message: "Employee account deactivated"
+      });
+    }
+    const userData = user.rows[0];
 
     const token = jwt.sign(
-        {id: user.rows[0].id, role: user.rows[0].role},
-        process.env.JWT_SECRET
+      {
+        employee_code: userData.employee_code,
+        role: userData.role,
+        name: userData.name
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
     );
 
     res.json({token});
 };
 
 //---------------LOG IN ENDS-------------------
+
+
+exports.changePassword = async (req, res) => {
+
+  try {
+
+    const employee_code = req.user.employee_code;
+
+    const { oldPassword, newPassword } = req.body;
+
+    const result = await pool.query(
+      "SELECT * FROM users WHERE employee_code = $1",
+      [employee_code]
+    );
+
+    const user = result.rows[0];
+
+    const valid = await bcrypt.compare(
+      oldPassword,
+      user.password
+    );
+
+    if (!valid) {
+      return res.status(400).json({
+        message: "Old password incorrect"
+      });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await pool.query(
+      `UPDATE users
+       SET password = $1
+       WHERE employee_code = $2`,
+      [hashed, employee_code]
+    );
+
+    res.json({
+      message: "Password changed successfully"
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "Server error"
+    });
+  }
+};
