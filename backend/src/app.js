@@ -23,6 +23,9 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+app.get("/", (req, res) => {
+  res.send("Backend Running");
+});
 
 //--------------------------TEST DB CONNECTION------------------------------------
 // Test DB Connection
