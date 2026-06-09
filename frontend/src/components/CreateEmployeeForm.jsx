@@ -39,7 +39,7 @@ export default function CreateEmployeeForm({ onCreated }) {
     }
     setLoading(true)
     try {
-      const body = { name: form.name.trim(), password: form.password.trim(), email: form.email.trim() }
+      const body = { name: form.name.trim(), password: form.password, email: form.email.trim() || null }
       if (form.employee_code.trim()) {
         body.employee_code = form.employee_code.trim().toUpperCase()
       }
@@ -102,7 +102,7 @@ export default function CreateEmployeeForm({ onCreated }) {
 
      
         <div className="form-group">
-          <label>Email <span className="required">*</span></label>
+          <label>Email <span className="optional">(optional)</span></label>
           <input
             name="email"
             type="email"

@@ -38,8 +38,8 @@ export const updateWorklog = (id, data) => api.put(`/worklogs/${id}`, data)
 // Admin
 export const getAllWorklogs = (params) => api.get('/admin/worklogs', { params })
 export const createEmployee = data => api.post('/admin/create-user', data)
-export const exportWorklogs = () =>
-  api.get('/admin/export', { responseType: 'blob' })
+export const exportWorklogs = (params) =>
+  api.get('/admin/export', { params, responseType: 'blob' })
 export const getEmployees = () =>
   api.get('/admin/employees')
 export const resetPassword = (

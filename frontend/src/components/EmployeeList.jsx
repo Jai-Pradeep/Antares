@@ -105,7 +105,7 @@ function formatDate(dateStr) {
   }
 }
 
-export default function EmployeeList() {
+export default function EmployeeList({ refreshKey = 0 }) {
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -126,7 +126,7 @@ export default function EmployeeList() {
 
   useEffect(() => {
     loadEmployees()
-  }, [])
+  }, [refreshKey])
 
   return (
     <>

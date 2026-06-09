@@ -85,46 +85,79 @@ exports.getAllLogs = async (req, res) => {
 };
 
 exports.createUser = async (req, res) => {
+  let client;
+
   try {
-    const { name, password, employee_code } = req.body;
+    client = await pool.connect();
 
-    let finalEmployeeCode = employee_code;
+    const { name, password, employee_code, email } = req.body;
+    const normalizedName = typeof name === "string" ? name.trim() : "";
+    const normalizedEmail =
+      typeof email === "string" && email.trim()
+        ? email.trim().toLowerCase()
+        : null;
+    const requestedEmployeeCode =
+      typeof employee_code === "string" && employee_code.trim()
+        ? employee_code.trim().toUpperCase()
+        : null;
 
-    // Auto-generate if not provided
-    if (!finalEmployeeCode) {
-
-      const latestUser = await pool.query(`
-        SELECT employee_code
-        FROM users
-        WHERE employee_code IS NOT NULL
-        ORDER BY employee_code DESC
-        LIMIT 1
-      `);
-
-      let nextNumber = 1;
-
-      if (latestUser.rows.length > 0) {
-
-        const lastCode =
-          latestUser.rows[0].employee_code;
-
-        const numericPart =
-          parseInt(lastCode.slice(2));
-
-        nextNumber = numericPart + 1;
-      }
-
-      finalEmployeeCode =
-        `AW${String(nextNumber).padStart(3, "0")}`;
+    if (!normalizedName || typeof password !== "string" || !password) {
+      return res.status(400).json({
+        message: "Name and password are required"
+      });
     }
 
-    // Check duplicate employee_code
-    const existing = await pool.query(
-      "SELECT * FROM users WHERE employee_code = $1",
+    if (password.length < 4) {
+      return res.status(400).json({
+        message: "Password must be at least 4 characters"
+      });
+    }
+
+    if (requestedEmployeeCode && !/^AW\d{3}$/.test(requestedEmployeeCode)) {
+      return res.status(400).json({
+        message: "Employee code must use the format AW followed by 3 digits"
+      });
+    }
+
+    if (normalizedEmail && !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      return res.status(400).json({
+        message: "Enter a valid email"
+      });
+    }
+
+    await client.query("BEGIN");
+
+    // Serialize employee creation so two requests cannot generate the same code.
+    await client.query("SELECT pg_advisory_xact_lock($1)", [20260609]);
+
+    let finalEmployeeCode = requestedEmployeeCode;
+
+    if (!finalEmployeeCode) {
+      const latestUser = await client.query(`
+        SELECT MAX(SUBSTRING(employee_code FROM 3)::INTEGER) AS latest_number
+        FROM users
+        WHERE employee_code ~ '^AW[0-9]{3}$'
+      `);
+
+      const nextNumber = Number(latestUser.rows[0].latest_number || 0) + 1;
+
+      if (nextNumber > 999) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          message: "No employee codes are available"
+        });
+      }
+
+      finalEmployeeCode = `AW${String(nextNumber).padStart(3, "0")}`;
+    }
+
+    const existing = await client.query(
+      "SELECT 1 FROM users WHERE employee_code = $1",
       [finalEmployeeCode]
     );
 
     if (existing.rows.length > 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({
         message: "Employee code already exists"
       });
@@ -132,87 +165,187 @@ exports.createUser = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO users
-      (name, password, role, employee_code)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *`,
+      (name, password, role, employee_code, email)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, name, role, employee_code, email, is_active, created_at`,
       [
-        name,
+        normalizedName,
         hashed,
         "employee",
-        finalEmployeeCode
+        finalEmployeeCode,
+        normalizedEmail
       ]
     );
 
-    const user = result.rows[0];
-
-    delete user.password;
-
-    res.json(user);
+    await client.query("COMMIT");
+    res.status(201).json(result.rows[0]);
 
   } catch (err) {
+    if (client) {
+      await client.query("ROLLBACK");
+    }
     console.log(err);
+
+    if (err.code === "23505") {
+      return res.status(400).json({
+        message: "Employee code or email already exists"
+      });
+    }
+
     res.status(500).json({
       message: "Server error"
     });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
 exports.exportLogs = async (req, res) => {
-    const result = await pool.query(`
-        SELECT
-          users.employee_code,
-          users.name,
-          worklogs.date,
-          worklogs.location,
-          worklogs.project,
-          worklogs.distance,
-          worklogs.status,
-          worklogs.remarks
-        FROM worklogs
-        JOIN users
-        ON worklogs.user_id = users.id
-        
+  try {
 
-    `);
+    const { from, to, all } = req.query;
+
+    let query = `
+      SELECT
+        users.employee_code,
+        users.name,
+        worklogs.date,
+        worklogs.location,
+        worklogs.project,
+        worklogs.distance,
+        worklogs.status,
+        worklogs.remarks
+      FROM worklogs
+      JOIN users
+      ON worklogs.user_id = users.id
+    `;
+
+    const values = [];
+
+    // FILTERING
+    if (all !== "true") {
+
+      if (from && to) {
+
+        query += `
+          WHERE DATE(worklogs.date) >= $1
+          AND DATE(worklogs.date) < $2
+        `;
+
+        // from: 2026-01
+        // -> 2026-01-01
+
+        const fromDate = `${from}-01`;
+        const [toYear, toMonth] = to.split("-").map(Number);
+        const nextMonthDate =
+          new Date(Date.UTC(toYear, toMonth, 1))
+            .toISOString()
+            .split("T")[0];
+
+        values.push(fromDate, nextMonthDate);
+      }
+    }
+
+    query += `
+      ORDER BY worklogs.date DESC
+    `;
+
+    const result =
+      await pool.query(query, values);
 
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Worklogs");
-    
-    // Headers
-    sheet.columns = [
-        { header: "Employee Code", key: "employee_code" },
-        { header: "Name", key: "name" },
-        { header: "Date", key: "date" },
-        { header: "Location", key: "location" },
-        { header: "Project", key: "project" },
-        { header: "Distance", key: "distance" },
-        { header: "Status", key: "status" },
-        { header: "Remarks", key: "remarks" }
-        ];
 
-    // Rows
-    result.rows.forEach(row =>{
-        sheet.addRow(row);
+    const sheet =
+      workbook.addWorksheet("Worklogs");
+
+    sheet.columns = [
+      {
+        header: "Employee Code",
+        key: "employee_code",
+        width: 18
+      },
+      {
+        header: "Name",
+        key: "name",
+        width: 25
+      },
+      {
+        header: "Date",
+        key: "date",
+        width: 15
+      },
+      {
+        header: "Location",
+        key: "location",
+        width: 25
+      },
+      {
+        header: "Project",
+        key: "project",
+        width: 30
+      },
+      {
+        header: "Distance",
+        key: "distance",
+        width: 12
+      },
+      {
+        header: "Status",
+        key: "status",
+        width: 15
+      },
+      {
+        header: "Remarks",
+        key: "remarks",
+        width: 40
+      }
+    ];
+
+    result.rows.forEach(row => {
+      sheet.addRow(row);
     });
 
-    res.setHeader(
-    "Content-Type",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    const monthName = new Date().toLocaleString(
-        "default",
-        { month: "long" }
-    );
+    // HEADER STYLING
+    sheet.getRow(1).font = {
+      bold: true
+    };
 
     res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=${monthName}_worklogs.xlsx`
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    
+
+    let fileName = "worklogs.xlsx";
+
+    if (all === "true") {
+      fileName = "All_Worklogs.xlsx";
+    }
+    else if (from && to) {
+      fileName =
+        `Worklogs_${from}_to_${to}.xlsx`;
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${fileName}`
+    );
+
     await workbook.xlsx.write(res);
+
     res.end();
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Export failed"
+    });
+  }
 };
 
 exports.resetPassword = async (req, res) => {
@@ -224,8 +357,11 @@ exports.resetPassword = async (req, res) => {
 
     const { newPassword } = req.body;
 
-    console.log("PARAM:", employee_code);
-    console.log("NEW PASSWORD:", newPassword);
+    if (typeof newPassword !== "string" || newPassword.length < 4) {
+      return res.status(400).json({
+        message: "Password must be at least 4 characters"
+      });
+    }
 
     const hashed =
       await bcrypt.hash(newPassword, 10);
@@ -233,15 +369,15 @@ exports.resetPassword = async (req, res) => {
     const result = await pool.query(
       `UPDATE users
        SET password = $1
-       WHERE employee_code = $2`,
+       WHERE employee_code = $2
+       AND role = 'employee'
+       AND is_active = TRUE`,
       [hashed, employee_code]
     );
 
-    console.log("ROW COUNT:", result.rowCount);
-
     if (result.rowCount === 0) {
       return res.status(404).json({
-        message: "Employee not found"
+        message: "Active employee not found"
       });
     }
 
@@ -271,44 +407,12 @@ exports.getEmployees = async (req, res) => {
         role,
         created_at
       FROM users
+      WHERE is_active = TRUE
+      AND role = 'employee'
       ORDER BY employee_code
     `);
 
     res.json(result.rows);
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-      message: "Server error"
-    });
-  }
-};
-
-exports.resetPassword = async (req, res) => {
-
-  try {
-
-    const { employee_code } = req.params;
-
-    const { newPassword } = req.body;
-
-    const hashed = await bcrypt.hash(
-      newPassword,
-      10
-    );
-
-    await pool.query(
-      `UPDATE users
-       SET password = $1
-       WHERE employee_code = $2`,
-      [hashed, employee_code]
-    );
-
-    res.json({
-      message: "Password reset successful"
-    });
 
   } catch (err) {
 
@@ -331,13 +435,15 @@ exports.deleteEmployee = async (req, res) => {
       `UPDATE users
        SET is_active = FALSE
        WHERE employee_code = $1
+       AND role = 'employee'
+       AND is_active = TRUE
        RETURNING *`,
       [employee_code]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
-        message: "Employee not found"
+        message: "Active employee not found"
       });
     }
 

@@ -24,9 +24,9 @@ const authMiddleware = async (req, res, next) => {
             [decoded.employee_code]
         );
 
-        if (result.rows.length === 0) {
+        if (result.rows.length === 0 || !result.rows[0].is_active) {
             return res.status(401).json({
-                error: "User not found"
+                error: "User not found or account deactivated"
             });
         }
 

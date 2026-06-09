@@ -31,6 +31,7 @@ router.post(
 router.put(
   "/reset-password/:employee_code",
   auth,
+  role("admin"),
   controller.resetPassword
 );
 
@@ -41,16 +42,10 @@ router.get(
   controller.getEmployees
 );
 
-router.put(
-  "/reset-password/:employee_code",
-  auth,
-  role("admin"),
-  controller.resetPassword
-);
-
 router.delete(
   "/employee/:employee_code",
   auth,
+  role("admin"),
   controller.deleteEmployee
 );
 
