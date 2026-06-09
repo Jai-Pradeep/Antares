@@ -25,7 +25,7 @@ require("dotenv").config();
 //   console.log(`Server running on port ${PORT}`);
 // });
 //--------------------------TEST DB CONNECTION------------------------------------
-Test DB Connection
+// Test DB Connection
 const pool = require("./config/db"); // adjust path if needed
 
 pool.query("SELECT NOW()")
