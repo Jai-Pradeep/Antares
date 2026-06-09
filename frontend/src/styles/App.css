@@ -1098,7 +1098,7 @@ html[data-theme="dark"] body {
 [data-theme="dark"] .form-group input,
 [data-theme="dark"] .form-group select,
 [data-theme="dark"] .form-group textarea {
-  background: #13161f;
+  background-color: #13161f;
   border-color: var(--border);
   color: var(--text-primary);
 }
