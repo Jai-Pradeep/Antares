@@ -286,6 +286,88 @@ body {
   flex-wrap: wrap;
 }
 
+.export-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.export-mode {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.export-mode-btn {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+
+.export-mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.export-mode-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.export-range {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.export-month {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 5px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.export-month input {
+  width: 128px;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 5px;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  color-scheme: light;
+  outline: none;
+}
+
+.export-month input:focus {
+  box-shadow: 0 0 0 2px var(--accent-border);
+}
+
+.export-range-arrow {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 .emp-code-tag {
   font-family: var(--font-mono);
   font-size: 0.8rem;
@@ -666,22 +748,6 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-.table-wrapper-scroll {
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-.employee-list-scroll { max-height: 620px; }
-.admin-worklogs-scroll { max-height: 510px; }
-
-.table-wrapper-scroll .data-table th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--surface-hover);
-  box-shadow: 0 1px 0 var(--border);
-}
-
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -811,6 +877,24 @@ body {
 
   .page-header-actions {
     width: 100%;
+  }
+
+
+   .export-controls,
+  .export-range {
+    width: 100%;
+  }
+
+  .export-mode {
+    flex: 1;
+  }
+
+  .export-mode-btn {
+    flex: 1;
+  }
+
+  .export-range {
+    justify-content: space-between;
   }
 
   .login-card {
@@ -1038,6 +1122,10 @@ body {
 
 [data-theme="dark"] .form-group select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b92a8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] .export-month input {
+  color-scheme: dark;
 }
 
 /* ── Dark: status pills adjusted ── */
