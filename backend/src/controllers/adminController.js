@@ -7,6 +7,10 @@ exports.getAllLogs = async (req, res) => {
   try {
 
     const { date, project, employee_code } = req.query;
+    const now = new Date();
+    const currentMonth =
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const month = req.query.month || currentMonth;
 
     let query = `
       SELECT
@@ -22,13 +26,37 @@ exports.getAllLogs = async (req, res) => {
     const conditions = [];
     const values = [];
 
-    // Filter by date
+    // A specific date overrides the month filter.
     if (date) {
 
       values.push(date);
 
       conditions.push(
         `worklogs.date = $${values.length}`
+      );
+    } else {
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({
+          message: "Month must use the YYYY-MM format"
+        });
+      }
+
+      const [year, monthNumber] = month.split("-").map(Number);
+
+      if (monthNumber < 1 || monthNumber > 12) {
+        return res.status(400).json({
+          message: "Month must use the YYYY-MM format"
+        });
+      }
+
+      const fromDate = `${month}-01`;
+      const nextMonthDate = new Date(Date.UTC(year, monthNumber, 1))
+        .toISOString()
+        .split("T")[0];
+
+      values.push(fromDate, nextMonthDate);
+      conditions.push(
+        `worklogs.date >= $${values.length - 1} AND worklogs.date < $${values.length}`
       );
     }
 
@@ -63,9 +91,6 @@ exports.getAllLogs = async (req, res) => {
     query += `
       ORDER BY worklogs.date DESC
     `;
-
-    console.log(query);
-    console.log(values);
 
     const result = await pool.query(
       query,
