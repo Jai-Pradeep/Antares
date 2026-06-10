@@ -19,6 +19,8 @@ function parseJwt(token) {
   } catch { return null }
 }
 
+const currentMonth = () => new Date().toLocaleDateString('en-CA').slice(0, 7)
+
 export default function AdminDashboard() {
   const token = localStorage.getItem('token')
   const user = parseJwt(token)
@@ -26,7 +28,7 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState([])
   const [logsLoading, setLogsLoading] = useState(true)
   const [exportLoading, setExportLoading] = useState(false)
-  const [activeFilters, setActiveFilters] = useState({})
+  const [activeFilters, setActiveFilters] = useState({ month: currentMonth() })
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [fromMonth, setFromMonth] = useState('')
   const [toMonth, setToMonth] = useState('')
@@ -46,7 +48,7 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    loadLogs()
+    loadLogs({ month: currentMonth() })
   }, [])
 
   const handleFilter = (filters) => {
@@ -262,7 +264,7 @@ const handleExport = async () => {
                   <line x1="3" y1="18" x2="3.01" y2="18"/>
                 </svg>
               </span>
-              <h3 className="card-title">All Worklogs</h3>
+              <h3 className="card-title">Worklogs</h3>
               {activeFilterCount > 0 && (
                 <span className="filter-active-badge">{activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active</span>
               )}
