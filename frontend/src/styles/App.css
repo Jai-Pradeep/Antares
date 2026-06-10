@@ -241,17 +241,23 @@ body {
     display: none;
   }
 
-  .navbar-logout,
-  .theme-toggle {
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    justify-content: center;
-    flex-shrink: 0;
+  /* Desktop */
+
+  .navbar-logout {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--error);
+    border-color: rgba(220,38,38,0.15);
+  }
+
+  .navbar-logout:hover {
+    background: var(--error-bg);
+    color: var(--error);
   }
 
   .navbar-logout-text {
-    display: none;
+    display: inline;
   }
 
 /* ─── Main Content ─── */
@@ -864,7 +870,7 @@ body {
 }
 
 /* ─── Responsive ─── */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .main-content {
     padding: 20px 16px 40px;
     gap: 18px;
@@ -885,6 +891,29 @@ body {
   .navbar-user-name {
     max-width: 130px;
   }
+
+  .navbar-user .badge {
+  display: none;
+}
+
+.navbar-logout,
+.theme-toggle {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  justify-content: center;
+  color: var(--error);
+  border-color: rgba(220,38,38,0.15);
+}
+
+.navbar-logout:hover {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.navbar-logout-text {
+  display: none;
+}
 
   .table-wrapper-scroll {
     max-height: 52vh;
