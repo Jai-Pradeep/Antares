@@ -190,6 +190,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .navbar-logo {
@@ -217,19 +218,41 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 .navbar-user {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .navbar-user-name {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-secondary);
+  max-width: clamp(70px, 25vw, 110px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+  .navbar-user .badge {
+    display: none;
+  }
+
+  .navbar-logout,
+  .theme-toggle {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .navbar-logout-text {
+    display: none;
+  }
 
 /* ─── Main Content ─── */
 .page-wrapper {
@@ -852,11 +875,19 @@ body {
   }
 
   .navbar {
-    padding: 0 16px;
+    padding: 0 10px;
+  }
+
+  .navbar-right {
+    gap: 5px;
   }
 
   .navbar-user-name {
-    display: none;
+    max-width: 130px;
+  }
+
+  .table-wrapper-scroll {
+    max-height: 52vh;
   }
 
   .page-header {
