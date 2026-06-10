@@ -181,7 +181,7 @@ export default function EmployeeList({ refreshKey = 0 }) {
             <p>No employees found.</p>
           </div>
         ) : (
-          <div className="table-wrapper">
+          <div className="table-wrapper table-wrapper-scroll">
             <table className="data-table">
               <thead>
                 <tr>

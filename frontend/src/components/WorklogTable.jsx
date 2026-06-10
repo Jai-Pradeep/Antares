@@ -36,7 +36,7 @@ export default function WorklogTable({ logs, loading }) {
   }
 
   return (
-    <div className="table-wrapper">
+    <div className="table-wrapper table-wrapper-scroll">
       <table className="data-table">
         <thead>
           <tr>
